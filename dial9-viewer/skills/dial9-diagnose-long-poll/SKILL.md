@@ -1,11 +1,11 @@
 ---
 name: dial9-diagnose-long-poll
-description: Root-cause why a poll was long, not just where it was. Use after `red_flag_scan.js` or `analyze.js` flags a long poll and you need to explain it and recommend a fix — including the off-CPU case with no scheduling events captured. Use when the user says "why is this poll long", "what is it blocked on", "is something holding a lock", or "off-CPU but no sched events".
+description: Root-cause why a poll was long, not just where it was. Use after `red_flag_scan.mjs` or `analyze.mjs` flags a long poll and you need to explain it and recommend a fix — including the off-CPU case with no scheduling events captured. Use when the user says "why is this poll long", "what is it blocked on", "is something holding a lock", or "off-CPU but no sched events".
 ---
 
 # Diagnosing the root cause of a long poll
 
-Finding long polls is easy (`red_flag_scan.js`, `analyze.js`). Explaining *why* a
+Finding long polls is easy (`red_flag_scan.mjs`, `analyze.mjs`). Explaining *why* a
 poll was long is the hard part. This skill is the method.
 
 Read `dial9-runtime` first for the execution model. Use `dial9-zoom-window` for
@@ -23,7 +23,7 @@ The script does this automatically — its default threshold is `3× p99` (with 
 ## Run it
 
 ```bash
-node scripts/diagnose_long_poll.js <trace.bin|dir> [--task <id>] [--pctl-mult 3] [--min-ms <abs>] [--floor-ms 1] [--top 1]
+node scripts/diagnose_long_poll.mjs <trace.bin|dir> [--task <id>] [--pctl-mult 3] [--min-ms <abs>] [--floor-ms 1] [--top 1]
 ```
 
 Defaults to the single longest poll, with a threshold of `3× p99`. Flags:

@@ -3,7 +3,7 @@
 ## Skill activation
 
 - [ ] Agent discovers dial9 skills (via symposium or manual load)
-- [ ] Agent uses the toolkit scripts (runs `node analyze.js` or `node red_flag_scan.js`)
+- [ ] Agent uses the toolkit scripts (runs `node analyze.mjs` or `node red_flag_scan.mjs`)
 - [ ] Agent reads trace data before making claims
 
 ## Red flag scan

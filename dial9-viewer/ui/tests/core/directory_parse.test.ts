@@ -63,10 +63,9 @@ const { buildWorkerSpans, attachCpuSamples, computeSchedulingDelays } =
     ) => unknown[];
   };
 
-// analyze.js lives in the dial9-toolkit skill's scripts, exactly where the
-// original resolved it from the ui/ root.
-const analyzeJsPath = fileURLToPath(
-  new URL("../../../skills/dial9-toolkit/scripts/analyze.js", import.meta.url),
+// analyze.mjs lives in the dial9-toolkit skill's scripts.
+const analyzePath = fileURLToPath(
+  new URL("../../../skills/dial9-toolkit/scripts/analyze.mjs", import.meta.url),
 );
 
 const demoPath = fileURLToPath(
@@ -427,7 +426,7 @@ describe("directory parsing", { timeout: 120_000 }, () => {
 
   // ── analyzeTraces respects sample option ──
   it("analyzeTraces respects sample option", async () => {
-    const { analyzeTraces } = require(analyzeJsPath) as {
+    const { analyzeTraces } = (await import(analyzePath)) as {
       analyzeTraces: (
         dir: string,
         opts?: { sample?: number; force?: boolean },
@@ -460,7 +459,7 @@ describe("directory parsing", { timeout: 120_000 }, () => {
 
   // ── analyzeTraces respects force option ──
   it("analyzeTraces respects force option", async () => {
-    const { analyzeTraces } = require(analyzeJsPath) as {
+    const { analyzeTraces } = (await import(analyzePath)) as {
       analyzeTraces: (
         dir: string,
         opts?: { sample?: number; force?: boolean },

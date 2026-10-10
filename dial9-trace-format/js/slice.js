@@ -461,7 +461,7 @@ Options:
   --end <ns>        End timestamp in nanoseconds (inclusive)
   --relative        Interpret --start/--end as offsets from trace start (minTs).
                     Without this flag, values are absolute monotonic ns (matching event.ts).
-                    Use --relative when your timestamps come from analyze.js or similar
+                    Use --relative when your timestamps come from analyze.mjs or similar
                     tools that report time relative to trace start.
 
 Examples:

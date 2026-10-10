@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Red flag scan for dial9 traces — surfaces common Tokio runtime problems.
-// Usage: node red_flag_scan.js <trace.bin or directory>
-"use strict";
+// Usage: node red_flag_scan.mjs <trace.bin or directory>
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
 
 // The shared trace libraries ship inside the toolkit skill, whose installed
 // directory name belongs to the installer (Symposium suffixes a hash on a
@@ -12,12 +12,12 @@ const path = require('path');
 const TOOLKIT_FILES = ['trace_parser.js', 'trace_analysis.js', 'decode.js'];
 
 function* toolkitCandidates() {
-  yield __dirname;
-  const skillsRoot = path.resolve(__dirname, '..', '..');
+  yield import.meta.dirname;
+  const skillsRoot = path.resolve(import.meta.dirname, '..', '..');
   let siblings = [];
   try { siblings = fs.readdirSync(skillsRoot).sort(); } catch { /* no skills root above this script */ }
   for (const entry of siblings) yield path.join(skillsRoot, entry, 'scripts');
-  yield path.resolve(__dirname, '..', '..', '..', 'ui');
+  yield path.resolve(import.meta.dirname, '..', '..', '..', 'ui');
 }
 
 function findToolkitDir() {
@@ -59,6 +59,10 @@ function findToolkitDir() {
 const TOOLKIT_DIR = findToolkitDir();
 function resolve(name) { return path.join(TOOLKIT_DIR, name); }
 
+// The shared libraries are CommonJS (the viewer loads the same files) at a
+// path found at run time, so they are loaded with require().
+const require = createRequire(import.meta.url);
+
 const { parseTrace, EVENT_TYPES, deduplicateSamples } = require(resolve('trace_parser.js'));
 const { activeTaskSeries, buildWorkerSpans, attachCpuSamples, buildActiveTaskTimeline,
         computeSchedulingDelays, buildSpanData, globalQueueSeries } = require(resolve('trace_analysis.js'));
@@ -67,7 +71,7 @@ const { activeTaskSeries, buildWorkerSpans, attachCpuSamples, buildActiveTaskTim
  *  into a single count line. */
 const LONG_POLL_REPORT_LIMIT = 5;
 
-async function redFlagScan(tracePath) {
+export async function redFlagScan(tracePath) {
   for await (const trace of parseTrace(tracePath)) {
     const workerIds = [...new Set(
       trace.events.filter(e => e.eventType !== EVENT_TYPES.QueueSample && e.eventType !== EVENT_TYPES.WakeEvent)
@@ -296,8 +300,7 @@ async function redFlagScan(tracePath) {
   }
 }
 
-if (require.main === module) {
+// Run the CLI only when executed directly, not when imported.
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === import.meta.filename) {
   redFlagScan(process.argv[2] || 'trace.bin').catch(err => { console.error(err); process.exit(1); });
 }
-
-module.exports = { redFlagScan };

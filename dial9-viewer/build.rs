@@ -274,7 +274,7 @@ fn generate_header(skills: &[SkillInfo]) -> String {
     out.push_str(&format!(
         "{HEADER_BIN_PLACEHOLDER} agents toolkit /tmp/d9-toolkit\n"
     ));
-    out.push_str("node /tmp/d9-toolkit/analyze.js <trace.bin or directory>\n\n");
+    out.push_str("node /tmp/d9-toolkit/analyze.mjs <trace.bin or directory>\n\n");
     out.push_str("# Unpack all skills as an Agent Skills directory\n");
     out.push_str(&format!(
         "{HEADER_BIN_PLACEHOLDER} agents skills /tmp/d9-skills\n"

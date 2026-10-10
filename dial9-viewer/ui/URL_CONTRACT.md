@@ -38,11 +38,11 @@ The query string holds what to load plus state each page owns; the hash
    string: pass it as is), from the toolkit's data.
 
 For example, with `node -e` in the toolkit's `scripts/` directory (a file
-saved elsewhere resolves `./analyze.js` against its own location), while
+saved elsewhere resolves `./toolkit.mjs` against its own location), while
 `dial9 serve --local-dir <dir>` serves the analyzed files:
 
 ```javascript
-const { analyzeTraces } = require('./analyze.js');
+import { analyzeTraces } from './toolkit.mjs';
 
 (async () => {
   const r = await analyzeTraces('<trace.bin or directory>');

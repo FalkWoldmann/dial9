@@ -42,7 +42,7 @@ Evaluate /tmp/dial9-long-poll-benchmark-*.md against benchmarks/long-poll-diagno
 ## What it tests
 
 - Agent loads the `dial9-diagnose-long-poll` skill before answering
-- Agent runs `diagnose_long_poll.js` (does not just eyeball `red_flag_scan.js`)
+- Agent runs `diagnose_long_poll.mjs` (does not just eyeball `red_flag_scan.mjs`)
 - Agent reasons about the on-CPU / off-CPU split correctly
 - For off-CPU polls, agent uses the per-tid CPU census (zoom or diagnose) and
   does **not** confidently call "blocked off-box" when the poll is too short

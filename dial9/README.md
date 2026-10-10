@@ -925,7 +925,7 @@ dial9 agents skills /tmp/dial9-skills
 
 # Extract the JS analysis toolkit to a directory
 dial9 agents toolkit /tmp/dial9-toolkit
-node /tmp/dial9-toolkit/analyze.js /tmp/my_traces/
+node /tmp/dial9-toolkit/analyze.mjs /tmp/my_traces/
 ```
 
 If you use [Symposium](https://symposium.dev), skills auto-install when your project depends on `dial9`:

@@ -16,11 +16,11 @@
 //      one-off coincidence is not.
 //
 // Usage:
-//   node diagnose_long_poll.js <trace.bin|dir> [--task <id>] [--min-ms 8] [--top 1] [--hz 99]
-"use strict";
+//   node diagnose_long_poll.mjs <trace.bin|dir> [--task <id>] [--min-ms 8] [--top 1] [--hz 99]
 
-const fs = require("fs");
-const path = require("path");
+import fs from "node:fs";
+import path from "node:path";
+import { createRequire } from "node:module";
 
 // The shared trace libraries ship inside the toolkit skill, whose installed
 // directory name belongs to the installer (Symposium suffixes a hash on a
@@ -28,12 +28,12 @@ const path = require("path");
 const TOOLKIT_FILES = ["trace_parser.js", "trace_analysis.js", "decode.js"];
 
 function* toolkitCandidates() {
-  yield __dirname;
-  const skillsRoot = path.resolve(__dirname, "..", "..");
+  yield import.meta.dirname;
+  const skillsRoot = path.resolve(import.meta.dirname, "..", "..");
   let siblings = [];
   try { siblings = fs.readdirSync(skillsRoot).sort(); } catch { /* no skills root above this script */ }
   for (const entry of siblings) yield path.join(skillsRoot, entry, "scripts");
-  yield path.resolve(__dirname, "..", "..", "..", "ui");
+  yield path.resolve(import.meta.dirname, "..", "..", "..", "ui");
 }
 
 function findToolkitDir() {
@@ -75,6 +75,10 @@ function findToolkitDir() {
 const TOOLKIT_DIR = findToolkitDir();
 function resolve(name) { return path.join(TOOLKIT_DIR, name); }
 
+// The shared libraries are CommonJS (the viewer loads the same files) at a
+// path found at run time, so they are loaded with require().
+const require = createRequire(import.meta.url);
+
 const { parseTrace, EVENT_TYPES, symbolizeChain, formatFrame } = require(resolve("trace_parser.js"));
 const { buildWorkerSpans, attachCpuSamples } = require(resolve("trace_analysis.js"));
 
@@ -108,7 +112,7 @@ async function main() {
   const hz = parseFloat(argVal("--hz", "99"));             // perf sampling frequency
   const msPerSample = 1000 / hz;
   if (!dir) {
-    console.error("usage: node diagnose_long_poll.js <trace.bin|dir> [--task <id>] [--min-ms <abs>] [--pctl-mult 3] [--floor-ms 1] [--top 1] [--hz 99]");
+    console.error("usage: node diagnose_long_poll.mjs <trace.bin|dir> [--task <id>] [--min-ms <abs>] [--pctl-mult 3] [--floor-ms 1] [--top 1] [--hz 99]");
     process.exit(2);
   }
 
@@ -271,6 +275,7 @@ async function main() {
   }
 }
 
-if (require.main === module) {
+// Run the CLI only when executed directly, not when imported.
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === import.meta.filename) {
   main().catch((e) => { console.error(e); process.exit(1); });
 }

@@ -2254,14 +2254,14 @@
     }
 
     /**
-     * Locate analyze.js, the parse worker. It sits next to this file in every
+     * Locate analyze.mjs, the parse worker. It sits next to this file in every
      * toolkit copy; in a source checkout this file lives in ui/ and the worker
      * under whichever skills/ entry ships the toolkit, found by content since
      * that directory's name is not fixed.
      * @private
      */
     function findParseWorker(fs, path) {
-        const candidates = [path.resolve(__dirname, "analyze.js")];
+        const candidates = [path.resolve(__dirname, "analyze.mjs")];
         const skillsRoot = path.resolve(__dirname, "..", "skills");
         let entries = [];
         try {
@@ -2271,13 +2271,13 @@
         }
         for (const entry of entries) {
             candidates.push(
-                path.join(skillsRoot, entry, "scripts", "analyze.js"),
+                path.join(skillsRoot, entry, "scripts", "analyze.mjs"),
             );
         }
         const found = candidates.find((c) => fs.existsSync(c));
         if (!found) {
             throw new Error(
-                "cannot find analyze.js (parse worker). Searched:\n  " +
+                "cannot find analyze.mjs (parse worker). Searched:\n  " +
                     candidates.join("\n  "),
             );
         }

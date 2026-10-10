@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 // dial9 trace analysis script: the toolkit's command-line entry point
-// Usage: node analyze.js <trace.bin or directory>
+// Usage: node analyze.mjs <trace.bin or directory>
 //   --force    Ignore cached results and re-parse all files
 //   --sample N Only analyze N evenly-spaced files from a directory
 // Modify this script to drill deeper into specific findings.
 
-const fs = require('fs');
-const path = require('path');
-const { createHistogram } = require('perf_hooks');
+import { execFile } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import os from 'node:os';
+import { createHistogram } from 'node:perf_hooks';
+import { diagnoseSetup } from './diagnose_setup.mjs';
 
 // The shared trace libraries ship inside the toolkit skill, whose installed
 // directory name belongs to the installer (Symposium suffixes a hash on a
@@ -15,12 +19,12 @@ const { createHistogram } = require('perf_hooks');
 const TOOLKIT_FILES = ['trace_parser.js', 'trace_analysis.js', 'decode.js'];
 
 function* toolkitCandidates() {
-  yield __dirname;
-  const skillsRoot = path.resolve(__dirname, '..', '..');
+  yield import.meta.dirname;
+  const skillsRoot = path.resolve(import.meta.dirname, '..', '..');
   let siblings = [];
   try { siblings = fs.readdirSync(skillsRoot).sort(); } catch { /* no skills root above this script */ }
   for (const entry of siblings) yield path.join(skillsRoot, entry, 'scripts');
-  yield path.resolve(__dirname, '..', '..', '..', 'ui');
+  yield path.resolve(import.meta.dirname, '..', '..', '..', 'ui');
 }
 
 function findToolkitDir() {
@@ -62,11 +66,14 @@ function findToolkitDir() {
 const TOOLKIT_DIR = findToolkitDir();
 function resolve(name) { return path.join(TOOLKIT_DIR, name); }
 
+// The shared libraries are CommonJS (the viewer loads the same files) at a
+// path found at run time, so they are loaded with require().
+const require = createRequire(import.meta.url);
+
 const { parseTrace, EVENT_TYPES, formatFrame, symbolizeChain, deduplicateSamples, deriveCapabilities } = require(resolve('trace_parser.js'));
 const { activeTaskSeries, buildWorkerSpans, attachCpuSamples, buildActiveTaskTimeline,
         computeSchedulingDelays, buildSpanData, analyzeAllocations,
         globalQueueSeries } = require(resolve('trace_analysis.js'));
-const { diagnoseSetup } = require(resolve('diagnose_setup.js'));
 
 // ── Helpers ──
 
@@ -758,7 +765,7 @@ function reportAnalysis(a, label) {
  * @param {string} tracePath - file or directory path
  * @param {Object} [opts] - { force, sample, onParseProgress }
  */
-async function analyzeTraces(tracePath, opts) {
+export async function analyzeTraces(tracePath, opts) {
   opts = opts || {};
   const isDir = fs.statSync(tracePath).isDirectory();
   const acc = createAccumulator();
@@ -783,14 +790,11 @@ async function analyzeTraces(tracePath, opts) {
   if (opts.onParseComplete) opts.onParseComplete();
 
   // Phase 2: parallel analysis via accumulate workers
-  const { execFile } = require('child_process');
-  const os = require('os');
   const cacheDir = path.join(tracePath, '.d9-cache');
   const cacheFiles = iter.files.map(f => f.replace(/\.(bin|bin\.gz)$/, '') + '.json');
 
-  const accWorkerCandidate = path.resolve(__dirname, 'analyze.js');
-  const accWorkerFallback = path.resolve(__dirname, '..', 'skills', 'analyze.js');
-  const accWorkerScript = fs.existsSync(accWorkerCandidate) ? accWorkerCandidate : accWorkerFallback;
+  // This file is the analysis worker too (`--analyze-worker`).
+  const accWorkerScript = import.meta.filename;
 
   const concurrency = Math.min(os.cpus().length, 32);
   let analyzed = 0;
@@ -828,7 +832,7 @@ async function analyzeTraces(tracePath, opts) {
 
 async function main() {
   const TRACE_PATH = process.argv[2];
-  if (!TRACE_PATH) { console.error('Usage: node analyze.js <trace.bin or directory>'); process.exit(1); }
+  if (!TRACE_PATH) { console.error('Usage: node analyze.mjs <trace.bin or directory>'); process.exit(1); }
   const FORCE = process.argv.includes('--force');
   const sampleIdx = process.argv.indexOf('--sample');
   const SAMPLE = sampleIdx !== -1 ? Number(process.argv[sampleIdx + 1]) : null;
@@ -954,7 +958,6 @@ function mergePartial(acc, p) {
   }
 }
 
-// Run CLI if executed directly, export if required as module
 // ── Worker modes (invoked as subprocesses) ──
 
 function mapToEntries(m) { return m instanceof Map ? [...m.entries()] : m; }
@@ -1113,7 +1116,8 @@ function analyzeWorkerMain(cachePath) {
 
 // ── Entry point ──
 
-if (require.main === module) {
+// Run the CLI only when executed directly, not when imported.
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === import.meta.filename) {
   if (process.argv[2] === '--parse-worker') {
     parseWorkerMain(process.argv[3], process.argv[4]).catch(err => { process.stderr.write(err.stack + '\n'); process.exit(1); });
   } else if (process.argv[2] === '--analyze-worker') {
@@ -1122,5 +1126,3 @@ if (require.main === module) {
     main().catch(err => { console.error(err); process.exit(1); });
   }
 }
-
-module.exports = { analyzeTraces };

@@ -5,10 +5,10 @@ description: Automated health checks for dial9 Tokio runtime traces. Detects inc
 
 # Red Flags: Automated Health Checks
 
-Run `scripts/red_flag_scan.js` against any trace to surface common Tokio runtime problems.
+Run `scripts/red_flag_scan.mjs` against any trace to surface common Tokio runtime problems.
 
 ```bash
-node scripts/red_flag_scan.js <trace.bin or directory>
+node scripts/red_flag_scan.mjs <trace.bin or directory>
 ```
 
 Each finding has a severity: critical, warning, or info.

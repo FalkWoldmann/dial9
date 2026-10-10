@@ -5,8 +5,8 @@
 // Migrated from test_all_skills_snippets.js (T11). SKILL.md discovery and
 // recipe extraction happen synchronously at module load so one it() is
 // registered per (input mode, recipe) pair; the snippet-execution mechanism
-// (strip requires, rewrite const redeclarations, run via `new Function` with
-// the prelude context) is preserved verbatim. The `require` handed to
+// (strip imports and requires, rewrite const redeclarations, run via
+// `new Function` with the prelude context) is preserved. The `require` handed to
 // snippets resolves from the ui/ root, exactly like the original script's.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -16,7 +16,7 @@ import { createRequire } from "node:module";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 // Anchored at the ui/ root (= the original test's __dirname), so snippet
 // require() calls and skill-script requires resolve identically.
@@ -77,9 +77,10 @@ function fixPlaceholders(code: string, tracePath: string): string {
     .replace(/['"]trace\.bin['"]/g, JSON.stringify(tracePath));
 }
 
-// Runs a recipe snippet exactly as the example tests do: drop `require()` lines
-// and demote `const` redeclarations of context vars to assignments (they are
-// already bound as function params), then eval with the context. Returns logs.
+// Runs a recipe snippet exactly as the example tests do: drop `import`
+// declarations and `require()` lines and demote `const` redeclarations of
+// context vars to assignments (they are already bound as function params),
+// then eval with the context. Returns logs.
 async function runRecipeSnippet(
   code: string,
   ctxNames: string[],
@@ -91,6 +92,7 @@ async function runRecipeSnippet(
   console.log = (...args: unknown[]) => logs.push(args.join(" "));
   try {
     const cleanCode = code
+      .replace(/^\s*import\s[^;]*?\sfrom\s*['"][^'"]+['"];?[ \t]*$/gm, "")
       .split("\n")
       .filter((line) => !line.match(/^\s*const\s*\{.*\}\s*=\s*require\(/))
       .map((line) => {
@@ -132,8 +134,8 @@ for (const { name, path: mdPath } of skillMds) {
   allRecipes.push(...extractRecipes(md, name));
 }
 
-// Resolve analyze.js from the toolkit skill scripts
-const analyzeJsPath = path.join(skillsDir, "dial9-toolkit", "scripts", "analyze.js");
+// The toolkit's ES module entry point, which recipes import from.
+const toolkitPath = path.join(skillsDir, "dial9-toolkit", "scripts", "toolkit.mjs");
 
 // Temp directory for directory-mode testing, seeded at collection time so the
 // inputs list (and thus the registered tests) is known synchronously.
@@ -207,7 +209,7 @@ for (const input of inputs) {
       }
 
       // Context: all variables available to code blocks
-      const { analyzeTraces } = require(analyzeJsPath);
+      const { analyzeTraces } = await import(toolkitPath);
       const ctx: Record<string, unknown> = {
         trace,
         workerIds,
@@ -354,18 +356,44 @@ describe("recipe performance guard", () => {
 });
 
 // ── Script validation ──
-// Verify that scripts/ files in each skill load without errors
+// Verify that scripts/ files in each skill load without errors: the shared
+// libraries as CommonJS, the tools as ES modules.
 describe("skill script validation", () => {
   for (const { name } of skillMds) {
     const scriptsDir = path.join(skillsDir, name, "scripts");
     if (!fs.existsSync(scriptsDir)) continue;
-    for (const f of fs.readdirSync(scriptsDir).filter((f) => f.endsWith(".js"))) {
+    for (const f of fs.readdirSync(scriptsDir)) {
       const scriptPath = path.join(scriptsDir, f);
-      it(`${name}/scripts/${f} loads`, () => {
-        require(scriptPath);
-      });
+      if (f.endsWith(".js")) {
+        it(`${name}/scripts/${f} loads`, () => {
+          require(scriptPath);
+        });
+      } else if (f.endsWith(".mjs")) {
+        it(`${name}/scripts/${f} loads`, async () => {
+          await import(pathToFileURL(scriptPath).href);
+        });
+      }
     }
   }
+
+  // Node cannot see trace_analysis.js's exports as named imports, so
+  // toolkit.mjs lists them by hand; a new library export must be added there.
+  it("toolkit.mjs re-exports every shared library export", async () => {
+    const scriptsDir = path.dirname(toolkitPath);
+    const toolkit = await import(pathToFileURL(toolkitPath).href);
+    const libraries = ["trace_parser.js", "trace_analysis.js"].map((f) =>
+      require(path.join(scriptsDir, f)),
+    );
+    const missing = libraries
+      .flatMap((lib) => Object.keys(lib))
+      .filter((k) => !(k in toolkit));
+    expect(missing, "exports missing from toolkit.mjs").toEqual([]);
+    // Vitest loads the libraries once per module system, so compare kinds,
+    // not identity: a misspelt name would re-export undefined.
+    for (const lib of libraries) {
+      for (const k of Object.keys(lib)) expect(typeof toolkit[k], k).toBe(typeof lib[k]);
+    }
+  });
 });
 
 // ── Schema validation helpers ──
@@ -550,7 +578,7 @@ function runSchemaCheck(
 describe("skill schema docs match runtime objects", { timeout: 120_000 }, () => {
   // ── analyzeTraces schema (dial9-trace-analysis) ──
   it("analyzeTraces return schema (dial9-trace-analysis)", async () => {
-    const { analyzeTraces: at } = require(analyzeJsPath);
+    const { analyzeTraces: at } = await import(toolkitPath);
     const analyzeResult = await at(demoPath);
     runSchemaCheck(
       "analyzeTraces",

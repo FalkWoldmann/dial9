@@ -5,20 +5,20 @@
 // dominant poll.
 //
 // Usage:
-//   node zoom.js <trace.bin|dir> <centerMs> [halfWindowMs=20] [--hz N]
+//   node zoom.mjs <trace.bin|dir> <centerMs> [halfWindowMs=20] [--hz N]
 //
 // centerMs is milliseconds from the start of the trace (the same "+N ms"
 // numbers the analyzer and red-flag scan print). Find an interesting centerMs
-// first — e.g. the timestamp of a long poll from `red_flag_scan.js`.
+// first — e.g. the timestamp of a long poll from `red_flag_scan.mjs`.
 //
 // --hz overrides the assumed perf sampling frequency (default 99 Hz, dial9's
 // default). At 99 Hz a thread accumulates ~1 on-CPU sample per 10ms, so a
 // window of ~30ms or less is below the sampler's noise floor; treat the
 // per-tid census there as suggestive rather than authoritative.
-"use strict";
 
-const fs = require("fs");
-const path = require("path");
+import fs from "node:fs";
+import path from "node:path";
+import { createRequire } from "node:module";
 
 // The shared trace libraries ship inside the toolkit skill, whose installed
 // directory name belongs to the installer (Symposium suffixes a hash on a
@@ -26,12 +26,12 @@ const path = require("path");
 const TOOLKIT_FILES = ["trace_parser.js", "trace_analysis.js", "decode.js"];
 
 function* toolkitCandidates() {
-  yield __dirname;
-  const skillsRoot = path.resolve(__dirname, "..", "..");
+  yield import.meta.dirname;
+  const skillsRoot = path.resolve(import.meta.dirname, "..", "..");
   let siblings = [];
   try { siblings = fs.readdirSync(skillsRoot).sort(); } catch { /* no skills root above this script */ }
   for (const entry of siblings) yield path.join(skillsRoot, entry, "scripts");
-  yield path.resolve(__dirname, "..", "..", "..", "ui");
+  yield path.resolve(import.meta.dirname, "..", "..", "..", "ui");
 }
 
 function findToolkitDir() {
@@ -73,6 +73,10 @@ function findToolkitDir() {
 const TOOLKIT_DIR = findToolkitDir();
 function resolve(name) { return path.join(TOOLKIT_DIR, name); }
 
+// The shared libraries are CommonJS (the viewer loads the same files) at a
+// path found at run time, so they are loaded with require().
+const require = createRequire(import.meta.url);
+
 const { parseTrace, EVENT_TYPES, symbolizeChain, formatFrame } = require(resolve("trace_parser.js"));
 const { buildWorkerSpans, attachCpuSamples, buildSpanData, globalQueueSeries } = require(resolve("trace_analysis.js"));
 
@@ -95,7 +99,7 @@ async function main() {
   const hz = parseFloat(argVal("--hz", "99"));
   const msPerSample = 1000 / hz;
   if (!dir || Number.isNaN(centerMs)) {
-    console.error("usage: node zoom.js <trace.bin|dir> <centerMs> [halfWindowMs=20] [--hz N]");
+    console.error("usage: node zoom.mjs <trace.bin|dir> <centerMs> [halfWindowMs=20] [--hz N]");
     process.exit(2);
   }
 
@@ -240,6 +244,7 @@ async function main() {
   }
 }
 
-if (require.main === module) {
+// Run the CLI only when executed directly, not when imported.
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === import.meta.filename) {
   main().catch((e) => { console.error(e); process.exit(1); });
 }

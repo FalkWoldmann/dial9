@@ -14,7 +14,7 @@ Two APIs depending on what you need:
 **`analyzeTraces(path)`** returns aggregated results across all files (parallel, fast). Use for diagnostic questions like "what's the worst poll" or "what's the utilization."
 
 ```javascript
-const { analyzeTraces } = require('./analyze.js');
+import { analyzeTraces } from './toolkit.mjs';
 const result = await analyzeTraces('/path/to/traces/');
 // result.longPolls, result.workerSpans, result.schedDelayHist, result.cpuGroups, etc.
 ```
@@ -22,9 +22,8 @@ const result = await analyzeTraces('/path/to/traces/');
 **`parseTrace(path)`** yields one `ParsedTrace` per file. Use when you need raw per-trace data (flamegraphs, field filtering, wake chains).
 
 ```javascript
-const { parseTrace, EVENT_TYPES, formatFrame, symbolizeChain, deduplicateSamples } = require('./trace_parser.js');
-const { buildWorkerSpans, attachCpuSamples,
-        computeSchedulingDelays } = require('./trace_analysis.js');
+import { parseTrace, EVENT_TYPES, formatFrame, symbolizeChain, deduplicateSamples,
+         buildWorkerSpans, attachCpuSamples, computeSchedulingDelays } from './toolkit.mjs';
 
 for await (const trace of parseTrace('/path/to/traces/')) {
   const workerIds = [...new Set(
@@ -42,8 +41,7 @@ for await (const trace of parseTrace('/path/to/traces/')) {
 ## Which task has the longest poll time?
 
 ```javascript
-const { analyzeTraces } = require('./analyze.js');
-const { symbolizeChain } = require('./trace_parser.js');
+import { analyzeTraces, symbolizeChain, formatFrame } from './toolkit.mjs';
 const result = await analyzeTraces('/path/to/traces/');
 const worst = result.longPolls[0];
 if (worst) {
@@ -52,13 +50,13 @@ if (worst) {
   if (worst.poll.cpuSamples?.length) {
     for (const s of worst.poll.cpuSamples) {
       const frames = symbolizeChain(s.callchain, result.callframeSymbols);
-      console.log(`  CPU: ${require('./trace_parser.js').formatFrame(frames[0]).text}`);
+      console.log(`  CPU: ${formatFrame(frames[0]).text}`);
     }
   }
   if (worst.poll.schedSamples?.length) {
     for (const s of worst.poll.schedSamples) {
       const frames = symbolizeChain(s.callchain, result.callframeSymbols);
-      console.log(`  Sched: ${require('./trace_parser.js').formatFrame(frames[0]).text}`);
+      console.log(`  Sched: ${formatFrame(frames[0]).text}`);
     }
   }
 }
@@ -69,7 +67,7 @@ if (worst) {
 A task leak means tasks are spawned but never terminate, causing the active count to grow monotonically.
 
 ```javascript
-const { analyzeTraces } = require('./analyze.js');
+import { analyzeTraces } from './toolkit.mjs';
 const result = await analyzeTraces('/path/to/traces/');
 const samples = result.taskTimeline.activeTaskSamples;
 if (samples.length > 0) {
@@ -96,7 +94,7 @@ if (samples.length > 0) {
 ## Task spawn rate by location
 
 ```javascript
-const { analyzeTraces } = require('./analyze.js');
+import { analyzeTraces } from './toolkit.mjs';
 const result = await analyzeTraces('/path/to/traces/');
 const spawnCounts = new Map();
 for (const [, loc] of result.taskSpawnLocs) {
@@ -156,7 +154,7 @@ if (spans.queueSamples.length > 0) {
 ## Are long poll times hurting my application?
 
 ```javascript
-const { analyzeTraces } = require('./analyze.js');
+import { analyzeTraces } from './toolkit.mjs';
 const result = await analyzeTraces('/path/to/traces/');
 console.log(`${result.longPolls.length} long polls (>1ms)`);
 // Poll duration by spawn location
@@ -172,7 +170,7 @@ if (result.schedDelayHist) {
 ## Worker utilization
 
 ```javascript
-const { analyzeTraces } = require('./analyze.js');
+import { analyzeTraces } from './toolkit.mjs';
 const result = await analyzeTraces('/path/to/traces/');
 for (const w of result.workerIds) {
   const ws = result.workerSpans[w];
@@ -185,8 +183,7 @@ for (const w of result.workerIds) {
 Scheduling samples (source=1) capture stack traces when the OS deschedules a worker thread.
 
 ```javascript
-const { analyzeTraces } = require('./analyze.js');
-const { formatFrame } = require('./trace_parser.js');
+import { analyzeTraces, formatFrame } from './toolkit.mjs';
 const result = await analyzeTraces('/path/to/traces/');
 console.log(`${result.offCpuSampleCount} off-CPU samples`);
 for (const g of result.schedGroups.slice(0, 10)) {
@@ -221,7 +218,7 @@ traceWakeChain(taskId, spans.wakesByTask, trace.taskSpawnLocs);
 Requires `Dial9TracingLayer` in the subscriber.
 
 ```javascript
-const { analyzeTraces } = require('./analyze.js');
+import { analyzeTraces } from './toolkit.mjs';
 const result = await analyzeTraces('/path/to/traces/');
 for (const [name, h] of result.spanStats) {
   console.log(`${name}: count=${h.count} p50=${(h.percentile(50)/1e3).toFixed(1)}µs p99=${(h.percentile(99)/1e3).toFixed(1)}µs max=${(h.max/1e3).toFixed(1)}µs`);
@@ -231,7 +228,7 @@ for (const [name, h] of result.spanStats) {
 ## What spans happened inside a long poll?
 
 ```javascript
-const { buildSpanData } = require('./trace_analysis.js');
+import { buildSpanData } from './toolkit.mjs';
 const { allSpans } = buildSpanData(trace.customEvents);
 
 // Find the longest poll
@@ -259,7 +256,7 @@ for (const [name, count] of Object.entries(byName)) {
 ## Filter spans by field value
 
 ```javascript
-const { buildSpanData } = require('./trace_analysis.js');
+import { buildSpanData } from './toolkit.mjs';
 const { allSpans } = buildSpanData(trace.customEvents);
 
 const matches = allSpans.filter(s => s.fields.request_id === 'abc-123');
@@ -272,7 +269,7 @@ for (const s of matches) {
 ## Detect tight loops (many spans per poll)
 
 ```javascript
-const { buildSpanData } = require('./trace_analysis.js');
+import { buildSpanData } from './toolkit.mjs';
 const { allSpans } = buildSpanData(trace.customEvents);
 
 // Polls on a worker are sorted and non-overlapping, so one forward sweep per
@@ -310,7 +307,7 @@ for (const w of workerIds) {
 Find a slow span and see what other spans and polls overlap on the same and other workers.
 
 ```javascript
-const { buildSpanData } = require('./trace_analysis.js');
+import { buildSpanData } from './toolkit.mjs';
 const { allSpans } = buildSpanData(trace.customEvents);
 
 // Find the slowest query_metric span
@@ -337,7 +334,7 @@ if (slowest) {
 Given a span, show its percentile rank compared to all spans of the same name.
 
 ```javascript
-const { buildSpanData } = require('./trace_analysis.js');
+import { buildSpanData } from './toolkit.mjs';
 const { allSpans } = buildSpanData(trace.customEvents);
 
 function spanPercentile(span) {
@@ -363,7 +360,7 @@ if (slowest) spanPercentile(slowest);
 ## Trace a request across workers
 
 ```javascript
-const { buildSpanData } = require('./trace_analysis.js');
+import { buildSpanData } from './toolkit.mjs';
 const { allSpans } = buildSpanData(trace.customEvents);
 
 const requestId = 'abc-123'; // replace with your request ID
@@ -380,8 +377,7 @@ for (const s of matches) {
 Task dumps capture async backtraces at yield points. Use them to see what futures a task is `await`ing during idle periods.
 
 ```javascript
-const { parseTrace, symbolizeChain, formatFrame } = require('./trace_parser.js');
-const { buildWorkerSpans } = require('./trace_analysis.js');
+import { parseTrace, symbolizeChain, formatFrame, buildWorkerSpans } from './toolkit.mjs';
 
 for await (const trace of parseTrace('/path/to/traces/')) {
   const workerIds = [...new Set(trace.events.filter(e => e.workerId !== undefined).map(e => e.workerId))].sort((a,b)=>a-b);
@@ -426,7 +422,7 @@ stops being a worker. The analysis layer detects these intervals as
 To investigate what code triggered `block_in_place`, look at CPU samples on `fromTid` during the gap:
 
 ```javascript
-const { parseTrace, symbolizeChain, formatFrame } = require('./trace_parser.js');
+import { parseTrace, symbolizeChain, formatFrame } from './toolkit.mjs';
 
 for await (const trace of parseTrace('/path/to/traces/')) {
   for (const gap of trace.blockInPlaceGaps) {
@@ -502,7 +498,7 @@ explicitly (a CLI flag or a constant per service).
 ### Total bytes allocated by call site
 
 ```javascript
-const { parseTrace, symbolizeChain, formatFrame } = require('./trace_parser.js');
+import { parseTrace, symbolizeChain, formatFrame } from './toolkit.mjs';
 
 // Read R from segment metadata (falls back to default for old traces)
 let SAMPLE_RATE_BYTES = 512 * 1024;
@@ -546,8 +542,7 @@ for (const [leaf, { bytes, count }] of top) {
 to attribute allocations to the task running at the time:
 
 ```javascript
-const { parseTrace, symbolizeChain, formatFrame } = require('./trace_parser.js');
-const { buildWorkerSpans } = require('./trace_analysis.js');
+import { parseTrace, symbolizeChain, formatFrame, buildWorkerSpans } from './toolkit.mjs';
 
 const SAMPLE_RATE_BYTES = 512 * 1024;
 const inverseProb = (s, r) => 1.0 / (1.0 - Math.exp(-s / r));
@@ -623,8 +618,7 @@ the average allocation size for that call path — useful for finding
 code that makes many small allocations vs. few large ones.
 
 ```javascript
-const { parseTrace, symbolizeChain, formatFrame } = require('./trace_parser.js');
-const { buildFlamegraphTree } = require('./trace_analysis.js');
+import { parseTrace, symbolizeChain, formatFrame, buildFlamegraphTree } from './toolkit.mjs';
 
 const R = 512 * 1024; // sample rate bytes
 

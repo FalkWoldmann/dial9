@@ -52,7 +52,7 @@ fi
 TRACE="$TARGET/trace.bin"
 LOG="/tmp/dial9-skill-benchmark-$(date +%Y%m%d-%H%M%S)"
 
-PROMPT="Analyze the dial9 trace at ./trace.bin using the toolkit in .d9-toolkit/. Identify performance problems, their root causes, and recommend fixes. Run the red flag scan first (node .d9-toolkit/analyze.js ./trace.bin), then drill into the worst findings with specific recipes from the dial9 skills. Show your work: include the commands you run and the key numbers."
+PROMPT="Analyze the dial9 trace at ./trace.bin using the toolkit in .d9-toolkit/. Identify performance problems, their root causes, and recommend fixes. Run the red flag scan first (node .d9-toolkit/analyze.mjs ./trace.bin), then drill into the worst findings with specific recipes from the dial9 skills. Show your work: include the commands you run and the key numbers."
 
 echo ""
 echo "Running benchmark..."

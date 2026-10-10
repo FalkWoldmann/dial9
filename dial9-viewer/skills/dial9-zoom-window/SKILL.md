@@ -1,6 +1,6 @@
 ---
 name: dial9-zoom-window
-description: Zoom into a narrow time window of a dial9 trace to see every worker and OS thread at one moment. Use after an aggregate pass (`analyze.js`, `red_flag_scan.js`) flags a timestamp: a long poll, a queue spike, a latency outlier. Use when the user says "zoom in", "what was happening at +6953ms", or "show me the window around that poll". Also covers sharing a window as a dial9 viewer deep link, with the full list of viewer URL parameters.
+description: Zoom into a narrow time window of a dial9 trace to see every worker and OS thread at one moment. Use after an aggregate pass (`analyze.mjs`, `red_flag_scan.mjs`) flags a timestamp: a long poll, a queue spike, a latency outlier. Use when the user says "zoom in", "what was happening at +6953ms", or "show me the window around that poll". Also covers sharing a window as a dial9 viewer deep link, with the full list of viewer URL parameters.
 ---
 
 # Zooming into a time window
@@ -17,7 +17,7 @@ poll) and `dial9-runtime` (the execution model).
 
 Zoom **after** an aggregate pass has given you a timestamp of interest:
 
-- A long poll from `red_flag_scan.js` (`Poll of 53.1ms ... at 6953.5ms`) — but note
+- A long poll from `red_flag_scan.mjs` (`Poll of 53.1ms ... at 6953.5ms`) — but note
   that "long" is relative: judge a poll by how far it sits in *this runtime's own*
   poll-duration tail (`pollDurationByLoc` p99), not an absolute millisecond cutoff.
   See `dial9-diagnose-long-poll` for the calibration.
@@ -45,7 +45,7 @@ the poll plus what bracketed it on both sides.
 ## Run it
 
 ```bash
-node scripts/zoom.js <trace.bin|dir> <centerMs> [halfWindowMs=20]
+node scripts/zoom.mjs <trace.bin|dir> <centerMs> [halfWindowMs=20]
 ```
 
 `centerMs` is the relative-ms timestamp from the aggregate tools.
@@ -53,7 +53,7 @@ node scripts/zoom.js <trace.bin|dir> <centerMs> [halfWindowMs=20]
 Example — zoom on a 53ms long poll the red-flag scan reported at +6953ms:
 
 ```bash
-node scripts/zoom.js /tmp/traces/host3/trace.bin.gz 6980 40
+node scripts/zoom.mjs /tmp/traces/host3/trace.bin.gz 6980 40
 ```
 
 ## What it shows, and how to read each section
@@ -118,11 +118,11 @@ Every window has a URL. The full interactive viewer honors `?start=`/`?end=`
 which ships with this skill as
 [`references/viewer-urls.md`](references/viewer-urls.md): every param the
 viewer, flamegraph and trace browser pages honor, plus ready-made link
-recipes. `zoom.js` prints this link at the end of every window report; to
+recipes. `zoom.mjs` prints this link at the end of every window report; to
 construct it yourself from the relative-ms numbers the aggregate tools print:
 
 ```javascript
-// centerMs / halfMs: the same numbers you passed to zoom.js.
+// centerMs / halfMs: the same numbers you passed to zoom.mjs.
 const centerMs = 6953.5, halfMs = 40;
 const start = Math.round(trace.minTs + (centerMs - halfMs) * 1e6);
 const end = Math.round(trace.minTs + (centerMs + halfMs) * 1e6);

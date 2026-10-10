@@ -3,7 +3,7 @@
 ## Skill activation
 
 - [ ] Agent loads `dial9-diagnose-long-poll` (and likely `dial9-zoom-window`)
-- [ ] Agent runs `diagnose_long_poll.js` against `./trace.bin`, not only the
+- [ ] Agent runs `diagnose_long_poll.mjs` against `./trace.bin`, not only the
       red-flag scan
 - [ ] Agent reads trace data before making claims
 
@@ -19,7 +19,7 @@
 - [ ] For an on-CPU poll, agent points to the hottest stack(s) and ties them
       to the spawn location
 - [ ] For an off-CPU poll, agent uses the per-tid CPU census from the script
-      (or `zoom.js`) to identify any on-CPU holder
+      (or `zoom.mjs`) to identify any on-CPU holder
 - [ ] Agent reasons **per tid**, not from aggregate sample counts
 
 ## Sampling-resolution honesty

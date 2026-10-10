@@ -16,7 +16,7 @@ This skill guides you through analyzing dial9 trace data stored in S3. The workf
 
 - AWS CLI configured with read access to the target bucket
 - `dial9` CLI installed (`cargo install dial9 --features cli` or `cargo binstall dial9`)
-- Node.js 16 or newer for running the analysis toolkit
+- Node.js 22 or newer for running the analysis toolkit
 
 ## Phase 1: Discovery
 
@@ -88,13 +88,13 @@ aws s3 cp s3://BUCKET/PREFIX/version=1/date=YYYY-MM-DD/service=SERVICE/time=HHMM
 
 ### Decompress
 
-`analyze.js` requires decompressed `.bin` files:
+`analyze.mjs` requires decompressed `.bin` files:
 
 ```bash
 gunzip /tmp/d9-traces/*.gz
 ```
 
-Note: If writing custom scripts with `parseTrace()` directly, it handles `.bin.gz` files transparently — decompression is only needed for the `analyze.js` CLI.
+Note: If writing custom scripts with `parseTrace()` directly, it handles `.bin.gz` files transparently — decompression is only needed for the `analyze.mjs` CLI.
 
 ## Phase 3: Analysis
 
@@ -108,13 +108,13 @@ dial9 agents toolkit /tmp/d9-toolkit
 
 ```bash
 # Single file
-node /tmp/d9-toolkit/analyze.js /tmp/d9-traces/file.bin
+node /tmp/d9-toolkit/analyze.mjs /tmp/d9-traces/file.bin
 
 # All files in a directory
-node /tmp/d9-toolkit/analyze.js /tmp/d9-traces/
+node /tmp/d9-toolkit/analyze.mjs /tmp/d9-traces/
 
 # Large datasets: sample a subset
-node /tmp/d9-toolkit/analyze.js /tmp/d9-traces/ --sample 50
+node /tmp/d9-toolkit/analyze.mjs /tmp/d9-traces/ --sample 50
 ```
 
 ### Interpret results
@@ -165,7 +165,7 @@ dial9 agents skill dial9-red-flags
 ## Tips
 
 - **File size indicates load**: Quiet periods typically produce ~35-45KB files; busy periods produce 1-5MB+ files per segment
-- **Multiple segments per hour**: Under load, trace rotation produces many files per time bucket — analyze them together by pointing `analyze.js` at the directory
+- **Multiple segments per hour**: Under load, trace rotation produces many files per time bucket — analyze them together by pointing `analyze.mjs` at the directory
 - **Boot IDs are per-process**: The 4-char ID (e.g. `nygg`) is generated at process start. After a restart or deploy, the same host gets a new boot_id
 - **Epoch in filename**: The leading number in the filename is the Unix timestamp when that segment started — use it to pick the right file for a time window
 - **Large time windows**: For fleet-wide analysis across hundreds of files, use `--sample 50` to analyze a representative subset
@@ -175,5 +175,5 @@ dial9 agents skill dial9-red-flags
 - **"Access Denied" or "NoSuchBucket"**: Verify credentials with `aws sts get-caller-identity` and check bucket region
 - **Empty bucket listings**: Verify the `version=1/date=YYYY-MM-DD/service=SERVICE/time=HHMM` partitions, region, and prefix
 - **`dial9` not found**: `cargo install dial9 --features cli` or `cargo binstall dial9`
-- **Analysis errors on .gz files**: Decompress first — `analyze.js` requires raw `.bin` input
+- **Analysis errors on .gz files**: Decompress first — `analyze.mjs` requires raw `.bin` input
 - **"Unknown frame tag" errors**: Toolkit version is older than the trace format — update dial9 with `cargo install dial9 --features cli`

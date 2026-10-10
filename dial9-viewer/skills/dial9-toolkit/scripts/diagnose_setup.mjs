@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // dial9 setup diagnostic — detects common configuration issues in traces.
-// Usage: node diagnose_setup.js <trace.bin or directory>
+// Usage: node diagnose_setup.mjs <trace.bin or directory>
 //
 // Checks:
 //   1. Missing frame pointers (shallow stacks)
@@ -9,10 +9,10 @@
 //   4. No scheduling events (informational)
 //   5. Recorded without tokio_unstable (poll events cover only dial9 spawns)
 //   6. Runtime activity but no task polls (Runtime::block_on instead of dial9::block_on)
-"use strict";
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
 
 // The shared trace libraries ship inside the toolkit skill, whose installed
 // directory name belongs to the installer (Symposium suffixes a hash on a
@@ -20,12 +20,12 @@ const path = require('path');
 const TOOLKIT_FILES = ['trace_parser.js', 'trace_analysis.js', 'decode.js'];
 
 function* toolkitCandidates() {
-  yield __dirname;
-  const skillsRoot = path.resolve(__dirname, '..', '..');
+  yield import.meta.dirname;
+  const skillsRoot = path.resolve(import.meta.dirname, '..', '..');
   let siblings = [];
   try { siblings = fs.readdirSync(skillsRoot).sort(); } catch { /* no skills root above this script */ }
   for (const entry of siblings) yield path.join(skillsRoot, entry, 'scripts');
-  yield path.resolve(__dirname, '..', '..', '..', 'ui');
+  yield path.resolve(import.meta.dirname, '..', '..', '..', 'ui');
 }
 
 function findToolkitDir() {
@@ -67,9 +67,13 @@ function findToolkitDir() {
 const TOOLKIT_DIR = findToolkitDir();
 function resolve(name) { return path.join(TOOLKIT_DIR, name); }
 
+// The shared libraries are CommonJS (the viewer loads the same files) at a
+// path found at run time, so they are loaded with require().
+const require = createRequire(import.meta.url);
+
 const { parseTrace, EVENT_TYPES } = require(resolve('trace_parser.js'));
 
-async function diagnoseSetup(tracePath) {
+export async function diagnoseSetup(tracePath) {
   const findings = [];
   let totalOnCpu = 0, totalOffCpu = 0;
   let callchainDepths = [];
@@ -271,13 +275,12 @@ awaited inline under it never reach the trace. dial9::block_on spawns it first.
   return findings;
 }
 
-if (require.main === module) {
+// Run the CLI only when executed directly, not when imported.
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === import.meta.filename) {
   const tracePath = process.argv[2];
   if (!tracePath) {
-    console.error('Usage: node diagnose_setup.js <trace.bin or directory>');
+    console.error('Usage: node diagnose_setup.mjs <trace.bin or directory>');
     process.exit(1);
   }
   diagnoseSetup(tracePath).catch(err => { console.error(err); process.exit(1); });
 }
-
-module.exports = { diagnoseSetup };

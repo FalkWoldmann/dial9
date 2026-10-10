@@ -2129,7 +2129,9 @@ mod skills_unpack_tests {
         );
 
         let expected = [
-            "analyze.js",
+            "analyze.mjs",
+            "diagnose_setup.mjs",
+            "toolkit.mjs",
             "decode.js",
             "trace_parser.js",
             "trace_analysis.js",
@@ -2224,26 +2226,26 @@ mod skills_unpack_tests {
                 scripts
                     .join("dial9-red-flags")
                     .join("scripts")
-                    .join("red_flag_scan.js"),
+                    .join("red_flag_scan.mjs"),
                 vec![fixture],
             ),
             (
                 scripts
                     .join("dial9-diagnose-long-poll")
                     .join("scripts")
-                    .join("diagnose_long_poll.js"),
+                    .join("diagnose_long_poll.mjs"),
                 vec![fixture],
             ),
             (
                 scripts
                     .join("dial9-zoom-window")
                     .join("scripts")
-                    .join("zoom.js"),
+                    .join("zoom.mjs"),
                 vec![fixture, "100"],
             ),
-            (toolkit.join("scripts").join("analyze.js"), vec![fixture]),
+            (toolkit.join("scripts").join("analyze.mjs"), vec![fixture]),
             (
-                toolkit.join("scripts").join("diagnose_setup.js"),
+                toolkit.join("scripts").join("diagnose_setup.mjs"),
                 vec![fixture],
             ),
         ];
@@ -2274,7 +2276,7 @@ mod skills_unpack_tests {
             .path()
             .join("dial9-zoom-window")
             .join("scripts")
-            .join("zoom.js");
+            .join("zoom.mjs");
         let output = run_node(&script, &["unused.bin", "100"]);
         assert!(!output.status.success());
 
@@ -2313,11 +2315,11 @@ mod skills_unpack_tests {
             .path()
             .join("dial9-zoom-window")
             .join("scripts")
-            .join("zoom.js");
+            .join("zoom.mjs");
         let output = run_node(&script, &[trace_fixture().to_str().unwrap(), "100"]);
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(output.status.success(), "stderr: {stderr}");
-        assert!(!output.stdout.is_empty(), "zoom.js printed nothing");
+        assert!(!output.stdout.is_empty(), "zoom.mjs printed nothing");
         assert!(
             stderr.contains("2 dial9 toolkit copies found"),
             "stderr: {stderr}"
@@ -2333,23 +2335,23 @@ mod skills_unpack_tests {
         let fixture = trace_fixture();
         let tools: [(PathBuf, Vec<&str>); 5] = [
             (
-                skills.join("dial9-red-flags/scripts/red_flag_scan.js"),
+                skills.join("dial9-red-flags/scripts/red_flag_scan.mjs"),
                 vec![fixture.to_str().unwrap()],
             ),
             (
-                skills.join("dial9-diagnose-long-poll/scripts/diagnose_long_poll.js"),
+                skills.join("dial9-diagnose-long-poll/scripts/diagnose_long_poll.mjs"),
                 vec![fixture.to_str().unwrap()],
             ),
             (
-                skills.join("dial9-zoom-window/scripts/zoom.js"),
+                skills.join("dial9-zoom-window/scripts/zoom.mjs"),
                 vec![fixture.to_str().unwrap(), "100"],
             ),
             (
-                skills.join("dial9-toolkit/scripts/analyze.js"),
+                skills.join("dial9-toolkit/scripts/analyze.mjs"),
                 vec![fixture.to_str().unwrap()],
             ),
             (
-                skills.join("dial9-toolkit/scripts/diagnose_setup.js"),
+                skills.join("dial9-toolkit/scripts/diagnose_setup.mjs"),
                 vec![fixture.to_str().unwrap()],
             ),
         ];

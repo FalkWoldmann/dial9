@@ -1,4 +1,4 @@
-// Test for diagnose_setup.js — verifies detection of common dial9
+// Test for diagnose_setup.mjs — verifies detection of common dial9
 // misconfigurations against real generated traces.
 //
 // Migrated from test_diagnose_setup.js (T11). Requires the diagnostic traces
@@ -13,30 +13,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { describe, it, expect } from "vitest";
-import { createRequire } from "node:module";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const uiDir = fileURLToPath(new URL("../../", import.meta.url));
-const require = createRequire(path.join(uiDir, "package.json"));
-
-// Same two-location resolution as the original: a sibling of the ui/ root
-// wins, else the dial9-toolkit skill's scripts directory.
-function resolve(name: string): string {
-  const sibling = path.resolve(uiDir, name);
-  if (fs.existsSync(sibling)) return sibling;
-  const toolkit = path.resolve(uiDir, "..", "skills", "dial9-toolkit", "scripts", name);
-  if (fs.existsSync(toolkit)) return toolkit;
-  return path.resolve(uiDir, name);
-}
+const diagnoseSetupPath = fileURLToPath(
+  new URL("../../../skills/dial9-toolkit/scripts/diagnose_setup.mjs", import.meta.url),
+);
 
 interface Finding {
   check: string;
   severity: string;
 }
 
-const { diagnoseSetup } = require(resolve("diagnose_setup.js")) as {
+const { diagnoseSetup } = (await import(diagnoseSetupPath)) as {
   diagnoseSetup: (dir: string) => Promise<Finding[]>;
 };
 

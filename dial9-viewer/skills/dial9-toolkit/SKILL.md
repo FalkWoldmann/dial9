@@ -1,6 +1,6 @@
 ---
 name: dial9-toolkit
-description: JavaScript analysis toolkit for parsing and analyzing dial9 Tokio runtime traces. Always start trace diagnosis with analyzeTraces() from analyze.js, then use parseTrace() and lower-level helpers only to confirm assumptions or drill into raw events.
+description: JavaScript analysis toolkit for parsing and analyzing dial9 Tokio runtime traces. Always start trace diagnosis with analyzeTraces() from analyze.mjs, then use parseTrace() and lower-level helpers only to confirm assumptions or drill into raw events.
 ---
 
 # dial9 Analysis Toolkit
@@ -24,20 +24,28 @@ dial9 traces capture the internal behavior of a Tokio async runtime:
 ## Quick start
 
 ```bash
-node scripts/analyze.js <trace.bin or directory>  # full diagnostic report
-node scripts/analyze.js traces/ --sample 50       # quick overview of large directories
-node scripts/analyze.js trace.bin --force          # ignore cached results
+node scripts/analyze.mjs <trace.bin or directory>  # full diagnostic report
+node scripts/analyze.mjs traces/ --sample 50       # quick overview of large directories
+node scripts/analyze.mjs trace.bin --force          # ignore cached results
 ```
 
 ## Modules
 
 | File | Purpose |
 |------|---------|
-| `scripts/analyze.js` | CLI entry point and `analyzeTraces()` aggregation function |
-| `scripts/diagnose_setup.js` | Setup diagnostic: detects missing frame pointers, wake events, debug symbols, sched events |
+| `scripts/toolkit.mjs` | ES module entry point: import every function below from here |
+| `scripts/analyze.mjs` | CLI entry point and `analyzeTraces()` aggregation function |
+| `scripts/diagnose_setup.mjs` | Setup diagnostic: detects missing frame pointers, wake events, debug symbols, sched events |
 | `scripts/trace_parser.js` | Binary parser: `parseTrace(path)` yields `ParsedTrace` objects |
 | `scripts/trace_analysis.js` | Analysis functions: `buildWorkerSpans`, `attachCpuSamples`, etc. |
 | `scripts/decode.js` | Low-level binary format decoder |
+
+The tools and `toolkit.mjs` are ES modules and need Node.js 22 or newer. The
+code snippets in the dial9 skills are ES modules too (they use `import` and
+top-level `await`): save one as a `.mjs` file in `scripts/` and run it with
+`node`, or pass it to `node -e` from inside `scripts/`. `trace_parser.js`,
+`trace_analysis.js` and `decode.js` are CommonJS files shared with the viewer;
+import them through `toolkit.mjs` rather than directly.
 
 ## Default workflow
 
@@ -50,7 +58,7 @@ node scripts/analyze.js trace.bin --force          # ignore cached results
 
 ## Setup diagnostic
 
-The setup diagnostic (`diagnose_setup.js`) runs automatically as part of `analyze.js` and checks for common configuration issues:
+The setup diagnostic (`diagnose_setup.mjs`) runs automatically as part of `analyze.mjs` and checks for common configuration issues:
 
 | Check | Severity | Symptom |
 |-------|----------|---------|
@@ -62,11 +70,11 @@ The setup diagnostic (`diagnose_setup.js`) runs automatically as part of `analyz
 
 Run standalone:
 ```bash
-node scripts/diagnose_setup.js <trace.bin or directory>
+node scripts/diagnose_setup.mjs <trace.bin or directory>
 ```
 
 ```javascript
-const { analyzeTraces } = require('./scripts/analyze.js');
+import { analyzeTraces } from './scripts/toolkit.mjs';
 const result = await analyzeTraces('/path/to/traces/');
 // result.longPolls, result.workerSpans, result.schedDelayHist, result.cpuGroups, result.spanStats
 ```
@@ -76,7 +84,7 @@ const result = await analyzeTraces('/path/to/traces/');
 After the aggregate pass, use the low-level parser to confirm assumptions or inspect raw details that the aggregate result points at, such as specific tasks, custom filters, wake chains, or per-file chronology:
 
 ```javascript
-const { parseTrace } = require('./scripts/trace_parser.js');
+import { parseTrace } from './scripts/toolkit.mjs';
 const trace = await parseTrace('/path/to/trace.bin');  // single file
 // or iterate a directory:
 for await (const trace of parseTrace('/path/to/traces/')) { ... }

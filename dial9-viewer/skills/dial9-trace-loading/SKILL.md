@@ -171,7 +171,7 @@ const relativeMs = (event.timestamp - trace.minTs) / 1e6;
 ## Symbol resolution
 
 ```javascript
-const { formatFrame, symbolizeChain, deduplicateSamples } = require('./trace_parser.js');
+import { formatFrame, symbolizeChain, deduplicateSamples } from './toolkit.mjs';
 
 // Resolve a full callchain to frame objects
 const frames = symbolizeChain(sample.callchain, trace.callframeSymbols);

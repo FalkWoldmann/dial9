@@ -286,7 +286,7 @@ pub async fn run() -> anyhow::Result<()> {
                 let abs = std::fs::canonicalize(&path)?;
                 eprintln!("Toolkit written to {}", abs.display());
                 eprintln!(
-                    "Run: node {}/analyze.js <trace.bin or directory>",
+                    "Run: node {}/analyze.mjs <trace.bin or directory>",
                     abs.display()
                 );
             }

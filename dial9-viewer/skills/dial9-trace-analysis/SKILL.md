@@ -12,7 +12,7 @@ After parsing, run the analysis pipeline to derive higher-level structures. All 
 For aggregated results across all files (recommended):
 
 ```javascript
-const { analyzeTraces } = require('./analyze.js');
+import { analyzeTraces } from './toolkit.mjs';
 const result = await analyzeTraces('/path/to/traces/'); // options: { sample, force }
 // result.longPolls, result.workerSpans, result.schedDelayHist, result.cpuGroups, result.spanStats
 ```
@@ -20,8 +20,7 @@ const result = await analyzeTraces('/path/to/traces/'); // options: { sample, fo
 For per-trace raw data (flamegraphs, field filtering, wake chains):
 
 ```javascript
-const { parseTrace } = require('./trace_parser.js');
-const { buildWorkerSpans, attachCpuSamples } = require('./trace_analysis.js');
+import { parseTrace, buildWorkerSpans, attachCpuSamples } from './toolkit.mjs';
 
 for await (const trace of parseTrace('/path/to/traces/')) {
   // full ParsedTrace with events, cpuSamples, callframeSymbols, etc.
