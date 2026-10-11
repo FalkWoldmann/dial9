@@ -10,9 +10,11 @@ use dial9_tokio_telemetry::telemetry::{
 use serde::Deserialize;
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::task::JoinSet;
+use tokio::time::Sleep;
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code, clippy::enum_variant_names)]
@@ -396,4 +398,80 @@ fn task_dump_capture_repoll_does_not_cause_poll_after_ready() {
         "spawned future was polled after it returned Ready \
          (TaskDumped re-polled a completed future): {result:?}"
     );
+}
+
+static POLL_SLEEP_CALL_LINE: AtomicU32 = AtomicU32::new(0);
+
+#[inline(never)]
+fn poll_sleep(sleep: Pin<&mut Sleep>, cx: &mut Context<'_>, out: &mut Poll<()>) {
+    *out = sleep.poll(cx);
+}
+
+struct SleepsViaCall(Pin<Box<Sleep>>);
+
+impl Future for SleepsViaCall {
+    type Output = ();
+
+    #[inline(never)]
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        let mut out = Poll::Pending;
+        POLL_SLEEP_CALL_LINE.store(line!() + 1, Ordering::Relaxed);
+        poll_sleep(self.0.as_mut(), cx, &mut out);
+        // SAFETY: `nop` has no effect.
+        unsafe { core::arch::asm!("nop", options(nomem, nostack, preserves_flags)) };
+        out
+    }
+}
+
+/// A task dump's caller frame must symbolize to its call site.
+#[test]
+fn task_dump_caller_frame_symbolizes_to_call_site() {
+    let (capture, batches) = capture_processor();
+
+    let recorder = recorder(MemoryBuffer::new(CAPTURE_BUFFER_SIZE).unwrap())
+        .with_custom_pipeline(|p| p.pipe(capture))
+        .build();
+    let rt = common::attach_current_thread(
+        &recorder,
+        TokioAttachOptions::builder()
+            .task_tracking_enabled(true)
+            .maybe_task_dump_config(Some(TaskDumpConfig::builder().rng_seed(42).build()))
+            .build(),
+    );
+
+    let handle = Dial9TokioHandle::current();
+    rt.block_on(async {
+        let sleep = Box::pin(tokio::time::sleep(Duration::from_millis(50)));
+        handle.spawn(SleepsViaCall(sleep)).await.unwrap();
+    });
+
+    drop(rt);
+    recorder.graceful_shutdown(Duration::from_secs(1));
+
+    let b = batches.lock().unwrap();
+    let events: Vec<DumpEvent> = decode_all(&b);
+    let call_line = POLL_SLEEP_CALL_LINE.load(Ordering::Relaxed);
+
+    let mut checked = 0;
+    for event in &events {
+        let DumpEvent::TaskDumpEvent { callchain } = event else {
+            continue;
+        };
+        let Some(poll_sleep_idx) = callchain.iter().position(|&addr| {
+            dial9_perf_self_profile::resolve_symbol(addr)
+                .name
+                .is_some_and(|n| n.ends_with("::poll_sleep"))
+        }) else {
+            continue;
+        };
+        let caller = dial9_perf_self_profile::resolve_symbol(callchain[poll_sleep_idx + 1]);
+        assert_eq!(
+            caller.code_info.and_then(|c| c.line),
+            Some(call_line),
+            "frame above `poll_sleep` should be its call site, got {:?}",
+            caller.name
+        );
+        checked += 1;
+    }
+    assert!(checked > 0, "no task dump had `poll_sleep` on the stack");
 }

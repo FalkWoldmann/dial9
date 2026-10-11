@@ -66,10 +66,10 @@ pub(crate) fn collect_frames_raw(frame_ips: &mut Vec<u64>) {
 /// Calls `_Unwind_FindEnclosingFunction` which takes `dl_iterate_phdr`'s lock,
 /// but this only runs on the infrequent emit path.
 pub(crate) fn trim_frames(
-    frame_ips: &[u64],
+    frame_ips: &mut [u64],
     root_addr: Option<*const c_void>,
     leaf_addr: *const c_void,
-) -> &[u64] {
+) -> &mut [u64] {
     // Find the first frame inside the leaf function (start of interesting range).
     let leaf_start = frame_ips.iter().position(|&ip| {
         let sym = unsafe { _Unwind_FindEnclosingFunction(ip as *mut c_void) };
@@ -85,8 +85,8 @@ pub(crate) fn trim_frames(
     });
 
     match (leaf_start, root_end) {
-        (Some(start), Some(end)) if start + 1 < end => &frame_ips[start + 1..end],
-        (Some(start), None) if start + 1 < frame_ips.len() => &frame_ips[start + 1..],
+        (Some(start), Some(end)) if start + 1 < end => &mut frame_ips[start + 1..end],
+        (Some(start), None) if start + 1 < frame_ips.len() => &mut frame_ips[start + 1..],
         _ => frame_ips,
     }
 }

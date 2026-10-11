@@ -256,11 +256,15 @@ impl FrameBuf {
                 .get(i + 1)
                 .map(|next| next.ip_start)
                 .unwrap_or(self.ips.len());
-            let raw = &self.ips[meta.ip_start..ip_end];
+            let raw = &mut self.ips[meta.ip_start..ip_end];
             let chain = match meta.leaf_addr {
                 Some(leaf) => crate::unwind::trim_frames(raw, meta.root_addr, leaf),
-                None => &[],
+                None => &mut [],
             };
+            // Return addresses minus one symbolize to the call site.
+            for ret in chain.iter_mut() {
+                *ret = ret.saturating_sub(1);
+            }
             if !chain.is_empty() {
                 handle.record_event_with(|| TaskDumpData {
                     timestamp_ns: capture_ts,
